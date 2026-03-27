@@ -54,12 +54,12 @@ app.post('/api/interrogate', async (req, res) => {
   const systemPrompt = getSuspectPrompt(suspect, caseData);
   const history = getHistory(sessionId, suspectId);
 
-  const reply = await chatWithSuspect(systemPrompt, history, userMessage, suspect);
+  const replyObj = await chatWithSuspect(systemPrompt, history, userMessage, suspect);
 
   appendHistory(sessionId, suspectId, { role: 'user', parts: [{ text: userMessage }] });
-  appendHistory(sessionId, suspectId, { role: 'model', parts: [{ text: reply }] });
+  appendHistory(sessionId, suspectId, { role: 'model', parts: [{ text: JSON.stringify(replyObj) }] });
 
-  res.json({ response: reply });
+  res.json({ response: replyObj.reply, suspicion_level: replyObj.suspicion_level });
 });
 
 app.post('/api/accuse', async (req, res) => {

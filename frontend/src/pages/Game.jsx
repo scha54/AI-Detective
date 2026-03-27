@@ -5,6 +5,7 @@ import AccusationPanel from '../components/AccusationPanel';
 export default function Game({ caseData, onAccuse }) {
   const [selectedSuspect, setSelectedSuspect] = useState(null);
   const [histories, setHistories] = useState({});
+  const [suspicionLevels, setSuspicionLevels] = useState({});
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [showAccuse, setShowAccuse] = useState(false);
@@ -28,10 +29,13 @@ export default function Game({ caseData, onAccuse }) {
 
     try {
       const res = await api.interrogate(sId, msg);
+      const suspicion = res.suspicion_level || 0;
+      
       setHistories(prev => ({
         ...prev,
         [sId]: [...(prev[sId] || []), { role: 'suspect', text: res.response }]
       }));
+      setSuspicionLevels(prev => ({ ...prev, [sId]: suspicion }));
     } catch (e) {
       setHistories(prev => ({
         ...prev,
@@ -42,7 +46,14 @@ export default function Game({ caseData, onAccuse }) {
     }
   };
 
+  const getSuspicionColor = (level) => {
+    if (level < 4) return '#a3be8c'; // Green-ish calm
+    if (level < 7) return '#ebcb8b'; // Yellow cautious
+    return 'var(--accent-color)'; // Red hostile
+  };
+
   const currentHistory = selectedSuspect ? (histories[selectedSuspect.id] || []) : [];
+  const currentSuspicion = selectedSuspect ? (suspicionLevels[selectedSuspect.id] || 0) : 0;
 
   return (
     <div className="app-container">
@@ -61,6 +72,7 @@ export default function Game({ caseData, onAccuse }) {
             >
               <h3>{s.name}</h3>
               <p>{s.identity}</p>
+              {suspicionLevels[s.id] > 6 && <span style={{color: 'var(--accent-color)', fontSize: '0.8rem', marginTop:'0.5rem', display:'block'}}>Defensive</span>}
             </div>
           ))}
           <button className="accuse-btn" onClick={() => setShowAccuse(true)}>Make Accusation</button>
@@ -70,7 +82,19 @@ export default function Game({ caseData, onAccuse }) {
           {selectedSuspect ? (
             <>
               <div className="chat-header">
-                <h3>Interrogating: {selectedSuspect.name}</h3>
+                <h3 style={{color: 'var(--primary-color)'}}>Interrogating: {selectedSuspect.name}</h3>
+                <div className="suspicion-meter-container">
+                  <span style={{fontSize: '0.8rem', color: '#aaa'}}>Suspicion / Defensiveness</span>
+                  <div className="suspicion-meter-bar">
+                    <div 
+                      className="suspicion-meter-fill" 
+                      style={{ 
+                        width: `${currentSuspicion * 10}%`, 
+                        backgroundColor: getSuspicionColor(currentSuspicion)
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
               <div className="chat-messages">
                 {currentHistory.length === 0 && (
@@ -83,7 +107,7 @@ export default function Game({ caseData, onAccuse }) {
                     <p>{m.text}</p>
                   </div>
                 ))}
-                {isTyping && <div className="message suspect typing"><p>Suspect is thinking...</p></div>}
+                {isTyping && <div className="message suspect typing"><p>{selectedSuspect.name} is thinking...</p></div>}
                 <div ref={scrollRef} />
               </div>
               <div className="chat-input">

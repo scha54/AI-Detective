@@ -58,23 +58,30 @@ export const chatWithSuspect = async (systemInstruction, history, newMessage, su
       config: {
         systemInstruction,
         temperature: 0.7,
+        responseMimeType: 'application/json'
       }
     });
 
-    const reply = response.text || "I have nothing to say.";
+    let jsonResponse;
+    try {
+      jsonResponse = JSON.parse(response.text);
+    } catch (e) {
+      console.error("Failed to parse suspect JSON:", response.text);
+      throw e;
+    }
 
     if (attempt === 1) {
-      const isContradiction = await evaluateResponseConsistency(reply, suspectInfo);
+      const isContradiction = await evaluateResponseConsistency(jsonResponse.reply, suspectInfo);
       if (isContradiction) {
         console.log("Contradiction detected, regenerating...");
         return await chatWithSuspect(systemInstruction, history, newMessage, suspectInfo, 2);
       }
     }
 
-    return reply;
+    return jsonResponse;
   } catch (err) {
     console.error("Gemini API Error in Chat:", err);
-    return "I can't answer that right now... (Server Error)";
+    return { suspicion_level: 0, inner_thought: "Error", reply: "I can't answer that right now... (Server Error)" };
   }
 };
 
